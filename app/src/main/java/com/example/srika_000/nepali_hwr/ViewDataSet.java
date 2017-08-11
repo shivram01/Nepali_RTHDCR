@@ -1,0 +1,167 @@
+package com.example.srika_000.nepali_hwr;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.gesture.Gesture;
+import android.gesture.GestureLibraries;
+import android.gesture.GestureLibrary;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.PopupMenu;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.Set;
+
+public class ViewDataSet extends Activity {
+    private static final String TAG = "MainActivity";
+    private String mCurrentGestureNaam, Name2;
+    private ListView mGestureListView;
+    private static ArrayList<CharacterHolder> mGestureList;
+    private CharacterAdapter mGestureAdapter;
+    private GestureLibrary gLib;
+    //private ImageView mMenuItemView;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_view_data_set);
+
+        Log.d(TAG, getApplicationInfo().dataDir);
+
+        openOptionsMenu();
+
+        mGestureListView = (ListView) findViewById((R.id.gestures_list));
+        mGestureList = new ArrayList<CharacterHolder>();
+        make_list();
+        mGestureAdapter = new CharacterAdapter(mGestureList, ViewDataSet.this);
+        mGestureListView.setLongClickable(true);
+        mGestureListView.setAdapter(mGestureAdapter);
+
+        // displays the popup context top_menu to either delete or resend measurement
+        registerForContextMenu(mGestureListView);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        setContentView(R.layout.activity_view_data_set);
+        Log.d(TAG, getApplicationInfo().dataDir);
+
+        openOptionsMenu();
+
+        mGestureListView = (ListView) findViewById((R.id.gestures_list));
+        mGestureList = new ArrayList<CharacterHolder>();
+        make_list();
+        mGestureAdapter = new CharacterAdapter(mGestureList, ViewDataSet.this);
+        mGestureListView.setLongClickable(true);
+        mGestureListView.setAdapter(mGestureAdapter);
+        // displays the popup context top_menu to either delete or resend measurement
+        registerForContextMenu(mGestureListView);
+    }
+
+
+    private void make_list() {
+        try {
+            mGestureList = new ArrayList<CharacterHolder>();
+            gLib = GestureLibraries.fromFile(getExternalFilesDir(null) + "/" + "gesture.txt");
+            gLib.load();
+            Set<String> gestureSet = gLib.getGestureEntries();
+            for (String gestureNaam : gestureSet) {
+                ArrayList<Gesture> list = gLib.getGestures(gestureNaam);
+                for (Gesture g : list) {
+                    mGestureList.add(new CharacterHolder(g, gestureNaam));
+                }
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    public void populateMenu(View view) {
+        //ImageView idView = (ImageView) view.findViewById(R.id.gesture_id);
+        //Log.d(TAG, "ha ha" + idView.getText().toString());
+        LinearLayout vwParentRow = (LinearLayout) view.getParent().getParent();
+        TextView tv = (TextView) vwParentRow.findViewById(R.id.gesture_name_ref);
+        mCurrentGestureNaam = tv.getText().toString();
+        PopupMenu popup = new PopupMenu(this, view);
+        popup.getMenuInflater().inflate(R.menu.character_item_options, popup.getMenu());
+        popup.show();
+    }
+
+    public void addButtonClick(View view) {
+        Intent saveGesture = new Intent(ViewDataSet.this, AddHere.class);
+        startActivity(saveGesture);
+    }
+
+    public void testButtonClick(View view) {
+        Intent testGesture = new Intent(ViewDataSet.this, MainActivity.class);
+        startActivity(testGesture);
+    }
+
+    public void deleteButtonClick(MenuItem item) {
+        gLib.removeEntry(mCurrentGestureNaam);
+        gLib.save();
+        mCurrentGestureNaam = "";
+        onResume();
+    }
+
+    public void renameButtonClick(MenuItem item) {
+
+        AlertDialog.Builder namePopup = new AlertDialog.Builder(this);
+        namePopup.setTitle(getString(R.string.enter_new_name));
+        //namePopup.setMessage(R.string.enter_name);
+
+        final EditText nameField = new EditText(this);
+        namePopup.setView(nameField);
+
+        namePopup.setPositiveButton(R.string.save, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                if (!nameField.getText().toString().matches("")) {
+                    Name2 = nameField.getText().toString();
+                    saveGesture();
+                } else {
+                    renameButtonClick(null);  //TODO : validation
+                    showToast(getString(R.string.invalid_name));
+                }
+            }
+        });
+        namePopup.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                Name2 = "";
+                mCurrentGestureNaam = "";
+                return;
+            }
+        });
+
+        namePopup.show();
+    }
+
+    private void saveGesture() {
+        ArrayList<Gesture> list = gLib.getGestures(mCurrentGestureNaam);
+        if (list.size() > 0) {
+            gLib.removeEntry(mCurrentGestureNaam);
+            gLib.addGesture(Name2, list.get(0));
+            if (gLib.save()) {
+                Log.e(TAG, "gesture renamed!");
+                onResume();
+            }
+        }
+        Name2 = "";
+    }
+
+    private void showToast(String string) {
+        Toast.makeText(this, string, Toast.LENGTH_SHORT).show();
+    }
+}
